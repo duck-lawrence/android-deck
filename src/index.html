@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Android Deck</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="/main.js" defer></script>
+  </head>
+
+  <body>
+    <header class="app-header">
+      <div class="brand">
+        <span class="logo">◈</span>
+        <div>
+          <h1>Android Deck</h1>
+          <p class="subtitle">Manage wireless Android connections</p>
+        </div>
+      </div>
+      <nav class="tabs">
+        <button class="tab active" data-tab="devices">Devices</button>
+        <button class="tab" data-tab="live">Connected</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </nav>
+    </header>
+
+    <main class="content">
+      <section id="tab-devices" class="tab-panel active">
+        <div class="toolbar">
+          <button id="add-device" class="btn primary">+ Add device</button>
+          <button id="refresh-devices" class="btn">Refresh status</button>
+        </div>
+        <div id="device-list" class="device-list"></div>
+        <p id="device-empty" class="empty hidden">
+          No devices yet. Click "Add device" to get started.
+        </p>
+      </section>
+
+      <section id="tab-live" class="tab-panel">
+        <div class="toolbar">
+          <button id="refresh-live" class="btn">Refresh</button>
+          <label class="switch">
+            <input type="checkbox" id="auto-refresh" checked />
+            Auto (3s)
+          </label>
+          <span class="spacer"></span>
+          <button id="kill-server" class="btn danger">adb kill-server</button>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Serial</th>
+              <th>Model</th>
+              <th>Connection</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="live-body"></tbody>
+        </table>
+        <p id="live-empty" class="empty hidden">No connected devices.</p>
+      </section>
+
+      <section id="tab-settings" class="tab-panel">
+        <form id="settings-form" class="form card">
+          <div class="field">
+            <label for="adb-path">adb path</label>
+            <input id="adb-path" type="text" placeholder="adb (default from PATH)" />
+            <small>Leave empty or set to "adb" to use the adb found in PATH.</small>
+          </div>
+          <div class="field">
+            <label for="scrcpy-path">scrcpy.exe path</label>
+            <input
+              id="scrcpy-path"
+              type="text"
+              placeholder="C:\Apps\scrcpy-win64-v4.1\scrcpy.exe"
+            />
+          </div>
+          <div class="field">
+            <label for="default-args">Default scrcpy arguments</label>
+            <input
+              id="default-args"
+              type="text"
+              placeholder="--max-size 1024 --video-bit-rate 8M"
+            />
+            <small>Space separated. Used for devices without their own arguments.</small>
+          </div>
+          <div class="toolbar">
+            <button type="submit" class="btn primary">Save settings</button>
+            <button type="button" id="check-tools" class="btn">Check tools</button>
+          </div>
+          <pre id="tool-status" class="status-box hidden"></pre>
+        </form>
+      </section>
+    </main>
+
+    <dialog id="device-dialog">
+      <form id="device-form">
+        <h2 id="device-dialog-title">Add device</h2>
+        <input type="hidden" id="device-id" />
+
+        <div class="field">
+          <label for="device-name">Device name</label>
+          <input id="device-name" type="text" placeholder="My Pixel 8" required />
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="device-ip">Connect IP</label>
+            <input id="device-ip" type="text" placeholder="192.168.1.50" required />
+          </div>
+          <div class="field">
+            <label for="device-connect-port">Connect port</label>
+            <input id="device-connect-port" type="number" value="5555" min="1" max="65535" />
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="device-pair-ip">Pair IP</label>
+            <input id="device-pair-ip" type="text" placeholder="(default = connect IP)" />
+          </div>
+          <div class="field">
+            <label for="device-pair-port">Pair port</label>
+            <input id="device-pair-port" type="number" placeholder="37000" min="1" max="65535" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="device-pair-code">Pairing code (6 digits)</label>
+          <input
+            id="device-pair-code"
+            type="text"
+            inputmode="numeric"
+            placeholder="123456"
+            autocomplete="off"
+          />
+          <small>Only needed for the first pairing. Saved with the code to auto pair + connect.</small>
+        </div>
+
+        <div class="field">
+          <label for="device-args">Per-device scrcpy arguments</label>
+          <input id="device-args" type="text" placeholder="(empty = use defaults)" />
+        </div>
+
+        <div class="dialog-actions">
+          <button type="button" id="device-cancel" class="btn">Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast hidden"></div>
+  </body>
+</html>
