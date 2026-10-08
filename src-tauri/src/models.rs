@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 pub fn default_adb_path() -> String {
-    "adb".to_string()
+    String::new()
 }
 
 pub fn default_scrcpy_path() -> String {
-    r"C:\Apps\scrcpy-win64-v4.1\scrcpy.exe".to_string()
+    String::new()
 }
 
 pub fn default_connect_port() -> u16 {
@@ -71,4 +71,18 @@ pub struct ToolStatus {
     pub scrcpy_ok: bool,
     pub scrcpy_path: String,
     pub scrcpy_message: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectedTool {
+    pub path: String,
+    pub source: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectionResult {
+    pub adb: Vec<DetectedTool>,
+    pub scrcpy: Vec<DetectedTool>,
 }

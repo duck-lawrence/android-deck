@@ -15,6 +15,8 @@ no more typing commands or opening the scrcpy folder manually in a terminal.
 - **Launch scrcpy** per device with dedicated arguments (or the defaults).
 - **Monitor connected devices** with a live view (auto-refreshes every 3s).
 - Configure the **adb / scrcpy paths** and check the tools from within the app.
+- **Auto-detect** the `adb` and `scrcpy` tools on first launch, with a
+  **Browse...** picker as a fallback.
 
 ## Requirements
 
@@ -50,8 +52,9 @@ rustup default stable-msvc
 ## Usage
 
 1. On the phone, enable **Developer options → Wireless debugging**.
-2. Open the app → **Settings** tab, set the `adb` path (or leave it as `adb`)
-   and the `scrcpy.exe` path, then click **Check tools**.
+2. Open the app → **Settings** tab. On first launch it **auto-detects** `adb`
+   and `scrcpy`; otherwise click **Auto-detect** or **Browse...** to set the
+   paths manually, then click **Check tools**.
 3. **Devices → Add device**: enter a name, the connect IP + port and (when
    needed) the pair IP + port with the **6-digit code** shown on the phone.
 4. Click **Save** — the app pairs and connects automatically.

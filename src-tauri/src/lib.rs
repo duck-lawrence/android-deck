@@ -1,6 +1,7 @@
 mod adb;
 mod commands;
 mod config;
+mod detect;
 mod models;
 mod scrcpy;
 
@@ -8,6 +9,7 @@ mod scrcpy;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::get_settings,
             commands::save_settings,
@@ -21,6 +23,8 @@ pub fn run() {
             commands::adb_kill_server,
             commands::launch_scrcpy,
             commands::check_tools,
+            commands::detect_tools,
+            commands::pick_tool_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

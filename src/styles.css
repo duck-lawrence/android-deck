@@ -379,3 +379,34 @@ dialog h2 {
 .toast.err {
   border-color: rgba(239, 83, 80, 0.6);
 }
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  width: 100%;
+}
+
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.candidates {
+  margin-top: 6px;
+}
+

@@ -65,6 +65,21 @@ document.querySelectorAll(".tab").forEach((btn) => {
 
 /* ---------------------- Settings ---------------------- */
 
+function readSettingsForm() {
+  return {
+    adbPath: $("#adb-path").value.trim() || "adb",
+    scrcpyPath: $("#scrcpy-path").value.trim(),
+    defaultScrcpyArgs: splitArgs($("#default-args").value),
+  };
+}
+
+async function persistSettings() {
+  const settings = readSettingsForm();
+  await invoke("save_settings", { settings });
+  state.settings = settings;
+  return settings;
+}
+
 async function loadSettings() {
   state.settings = await invoke("get_settings");
   $("#adb-path").value = state.settings.adbPath || "";
@@ -74,14 +89,8 @@ async function loadSettings() {
 
 $("#settings-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const settings = {
-    adbPath: $("#adb-path").value.trim() || "adb",
-    scrcpyPath: $("#scrcpy-path").value.trim(),
-    defaultScrcpyArgs: splitArgs($("#default-args").value),
-  };
   try {
-    await invoke("save_settings", { settings });
-    state.settings = settings;
+    await persistSettings();
     toast("Settings saved", "ok");
   } catch (err) {
     toast(String(err), "err");
@@ -93,13 +102,7 @@ $("#check-tools").addEventListener("click", async () => {
   box.classList.remove("hidden");
   box.textContent = "Checking...";
   try {
-    await invoke("save_settings", {
-      settings: {
-        adbPath: $("#adb-path").value.trim() || "adb",
-        scrcpyPath: $("#scrcpy-path").value.trim(),
-        defaultScrcpyArgs: splitArgs($("#default-args").value),
-      },
-    });
+    await persistSettings();
     const status = await invoke("check_tools");
     const line = (ok, label, detail) =>
       `${ok ? "[OK]   " : "[FAIL] "}${label}: ${detail}`;
@@ -111,6 +114,91 @@ $("#check-tools").addEventListener("click", async () => {
     box.textContent = String(err);
   }
 });
+
+/* ---------------------- Auto-detect / Browse ---------------------- */
+
+function fillCandidates(kind, list) {
+  const select = $(`#${kind}-candidates`);
+  select.innerHTML = "";
+  if (list.length <= 1) {
+    select.classList.add("hidden");
+    return;
+  }
+  for (const item of list) {
+    const option = document.createElement("option");
+    option.value = item.path;
+    option.textContent = `${item.path}  ·  ${item.source}`;
+    select.appendChild(option);
+  }
+  select.classList.remove("hidden");
+}
+
+async function detectTools({ autoSave = false, silent = false } = {}) {
+  let result;
+  try {
+    result = await invoke("detect_tools");
+  } catch (err) {
+    if (!silent) toast(String(err), "err");
+    return null;
+  }
+
+  fillCandidates("adb", result.adb);
+  fillCandidates("scrcpy", result.scrcpy);
+
+  const adbFound = result.adb.length > 0;
+  const scrcpyFound = result.scrcpy.length > 0;
+
+  $("#adb-path").value = adbFound ? result.adb[0].path : "";
+  $("#adb-hint").textContent = adbFound
+    ? `Detected (${result.adb[0].source}).`
+    : 'Not found — leaving it empty uses "adb" from PATH.';
+
+  $("#scrcpy-path").value = scrcpyFound ? result.scrcpy[0].path : "";
+  $("#scrcpy-hint").textContent = scrcpyFound
+    ? `Detected (${result.scrcpy[0].source}).`
+    : "Not found — please Browse... or enter the path manually.";
+
+  if (autoSave) {
+    try {
+      await persistSettings();
+    } catch (err) {
+      toast(String(err), "err");
+    }
+  }
+
+  if (!silent) {
+    toast(
+      `Detected — adb: ${adbFound ? "yes" : "no"}, scrcpy: ${scrcpyFound ? "yes" : "no"}`,
+      scrcpyFound ? "ok" : "info",
+    );
+  }
+
+  return { adbFound, scrcpyFound };
+}
+
+$("#detect-tools").addEventListener("click", () => detectTools({ autoSave: true }));
+
+["adb", "scrcpy"].forEach((kind) => {
+  $(`#${kind}-candidates`).addEventListener("change", (event) => {
+    $(`#${kind}-path`).value = event.target.value;
+  });
+});
+
+document.querySelectorAll(".browse").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const kind = button.dataset.browse;
+    try {
+      const path = await invoke("pick_tool_file", { kind });
+      if (path) {
+        $(`#${kind}-path`).value = path;
+        $(`#${kind}-hint`).textContent = "Selected manually.";
+      }
+    } catch (err) {
+      toast(String(err), "err");
+    }
+  });
+});
+
 
 /* ---------------------- Devices ---------------------- */
 
@@ -353,6 +441,17 @@ function stopPolling() {
 
 async function init() {
   await loadSettings();
+
+  const configured = Boolean(state.settings.adbPath || state.settings.scrcpyPath);
+  if (!configured) {
+    const result = await detectTools({ autoSave: true, silent: true });
+    if (result && (result.adbFound || result.scrcpyFound)) {
+      toast("Auto-detected tool paths — review them in Settings", "ok");
+    } else {
+      toast("Could not auto-detect adb/scrcpy — set the paths in Settings", "info");
+    }
+  }
+
   await loadDevices();
   await refreshLive();
   startPolling();

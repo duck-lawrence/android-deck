@@ -1,9 +1,10 @@
 use std::path::Path;
 
 use tauri::AppHandle;
+use tauri_plugin_dialog::DialogExt;
 
-use crate::models::{default_scrcpy_path, ConnectedDevice, Device, Settings, ToolStatus};
-use crate::{adb, config, scrcpy};
+use crate::models::{ConnectedDevice, DetectionResult, Device, Settings, ToolStatus};
+use crate::{adb, config, detect, scrcpy};
 
 fn adb_path(app: &AppHandle) -> String {
     let path = config::load(app).settings.adb_path;
@@ -16,14 +17,7 @@ fn adb_path(app: &AppHandle) -> String {
 
 #[tauri::command]
 pub fn get_settings(app: AppHandle) -> Settings {
-    let mut settings = config::load(&app).settings;
-    if settings.adb_path.trim().is_empty() {
-        settings.adb_path = "adb".to_string();
-    }
-    if settings.scrcpy_path.trim().is_empty() {
-        settings.scrcpy_path = default_scrcpy_path();
-    }
-    settings
+    config::load(&app).settings
 }
 
 #[tauri::command]
@@ -104,8 +98,8 @@ pub fn launch_scrcpy(app: AppHandle, serial: String, args: Vec<String>) -> Resul
 
 #[tauri::command]
 pub fn check_tools(app: AppHandle) -> ToolStatus {
-    let settings = get_settings(app.clone());
-    let adb = settings.adb_path.clone();
+    let settings = config::load(&app).settings;
+    let adb = adb_path(&app);
 
     let (adb_ok, adb_message) = match adb::run(&adb, &["version"]) {
         Ok(output) => {
@@ -135,4 +129,29 @@ pub fn check_tools(app: AppHandle) -> ToolStatus {
         scrcpy_path,
         scrcpy_message,
     }
+}
+
+#[tauri::command]
+pub fn detect_tools() -> DetectionResult {
+    detect::detect()
+}
+
+#[tauri::command]
+pub async fn pick_tool_file(app: AppHandle, kind: String) -> Result<Option<String>, String> {
+    let title = if kind == "scrcpy" {
+        "Select scrcpy.exe"
+    } else {
+        "Select adb.exe"
+    };
+
+    let picked = app
+        .dialog()
+        .file()
+        .set_title(title)
+        .add_filter("Executable", &["exe"])
+        .blocking_pick_file();
+
+    Ok(picked
+        .and_then(|f| f.into_path().ok())
+        .map(|p| p.to_string_lossy().to_string()))
 }

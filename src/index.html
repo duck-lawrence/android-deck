@@ -64,16 +64,21 @@
         <form id="settings-form" class="form card">
           <div class="field">
             <label for="adb-path">adb path</label>
-            <input id="adb-path" type="text" placeholder="adb (default from PATH)" />
-            <small>Leave empty or set to "adb" to use the adb found in PATH.</small>
+            <div class="input-row">
+              <input id="adb-path" type="text" placeholder="adb (auto-detected or from PATH)" />
+              <button type="button" class="btn browse" data-browse="adb">Browse...</button>
+            </div>
+            <select id="adb-candidates" class="candidates hidden"></select>
+            <small id="adb-hint">Leave empty to use the adb found in PATH.</small>
           </div>
           <div class="field">
             <label for="scrcpy-path">scrcpy.exe path</label>
-            <input
-              id="scrcpy-path"
-              type="text"
-              placeholder="C:\Apps\scrcpy-win64-v4.1\scrcpy.exe"
-            />
+            <div class="input-row">
+              <input id="scrcpy-path" type="text" placeholder="scrcpy.exe" />
+              <button type="button" class="btn browse" data-browse="scrcpy">Browse...</button>
+            </div>
+            <select id="scrcpy-candidates" class="candidates hidden"></select>
+            <small id="scrcpy-hint">Required to mirror the screen.</small>
           </div>
           <div class="field">
             <label for="default-args">Default scrcpy arguments</label>
@@ -85,6 +90,7 @@
             <small>Space separated. Used for devices without their own arguments.</small>
           </div>
           <div class="toolbar">
+            <button type="button" id="detect-tools" class="btn">Auto-detect</button>
             <button type="submit" class="btn primary">Save settings</button>
             <button type="button" id="check-tools" class="btn">Check tools</button>
           </div>
