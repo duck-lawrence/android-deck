@@ -86,16 +86,16 @@ The configuration is stored at `%APPDATA%\com.androideck.desktop\config.json`.
 ## Download
 
 Windows installers (`.msi` / `.exe`) are built automatically and attached to
-[**Releases**](../../releases) whenever a version tag (e.g. `v0.1.0`) is pushed.
+[**Releases**](../../releases) whenever a version tag is pushed.
 Download the files from the **Assets** section of the latest release.
 
 ### Creating a release
 
 ```powershell
 # 1. Bump the version in package.json, src-tauri/Cargo.toml and src-tauri/tauri.conf.json
-# 2. Create and push the tag
-git tag v0.1.0
-git push origin v0.1.0
+# 2. Create and push a tag (the workflow triggers on tags starting with "v")
+git tag v<X.Y.Z>
+git push origin v<X.Y.Z>
 ```
 
 GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml))
