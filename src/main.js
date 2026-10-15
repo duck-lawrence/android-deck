@@ -259,7 +259,7 @@ function renderDevices() {
         <p class="muted">${escapeHtml(device.ip)}:<input
           type="number" min="1" max="65535" class="port-input" data-port
           value="${port}"
-          title="Connect port — đổi mỗi khi bật/tắt Wireless debugging hoặc khởi động lại điện thoại"
+          title="Connect port — changes each time Wireless debugging is toggled or the phone reboots"
         />${conn && conn.model ? " · " + escapeHtml(conn.model) : ""}</p>
         <p class="muted small">Pairing: ${
           pair ? escapeHtml(pair) : "not configured"
@@ -267,12 +267,11 @@ function renderDevices() {
         ${
           conn
             ? ""
-            : '<p class="muted small">Đã lưu — kiểm tra lại port hiện tại trên điện thoại rồi bấm Connect.</p>'
+            : '<p class="muted small">Saved — check the current port on the phone, then click Connect.</p>'
         }
       </div>
       <div class="device-actions">
         <button class="btn primary" data-act="connect">Connect</button>
-        <button class="btn" data-act="pair">Pair lại</button>
         <button class="btn" data-act="scrcpy" ${online ? "" : "disabled"}>Open scrcpy</button>
         <button class="btn" data-act="disconnect" ${conn ? "" : "disabled"}>Disconnect</button>
         <button class="btn" data-act="edit">Edit</button>
@@ -291,7 +290,7 @@ function renderDevices() {
 }
 
 async function handleDeviceAction(action, device, card, portInput) {
-  if (action === "edit" || action === "pair") return openDeviceDialog(device);
+  if (action === "edit") return openDeviceDialog(device);
 
   if (action === "delete") {
     if (!confirm(`Delete device "${device.name}"?`)) return;

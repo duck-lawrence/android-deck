@@ -67,9 +67,9 @@ rustup default stable-msvc
   off/on or the phone is rebooted, and the **pairing code is single-use** (some
   ROMs such as MIUI/HyperOS require pairing again after a reboot). The app keeps
   your device saved — just open Wireless debugging on the phone, update the port
-  in the device card (inline field) and click **Connect**, or use **Pair lại**
-  when a new code is needed. The app cannot keep the port fixed; that is defined
-  by the phone.
+  in the device card (inline field) and click **Connect**, or open **Edit** to
+  update the pairing port and enter the new code. The app cannot keep the port
+  fixed; that is defined by the phone.
 - **The window no longer freezes.** adb commands run on a worker thread with a
   hard timeout (15s for read-only commands, 30s for `connect`/`pair`), so a slow
   or unreachable device reports an error instead of hanging the UI.
