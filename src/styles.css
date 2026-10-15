@@ -186,6 +186,14 @@ body {
   margin: 2px 0;
 }
 
+.port-input {
+  width: 76px;
+  padding: 2px 6px;
+  font-size: 12px;
+  text-align: center;
+  vertical-align: baseline;
+}
+
 .device-actions {
   display: flex;
   gap: 8px;

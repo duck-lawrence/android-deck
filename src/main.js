@@ -224,6 +224,21 @@ function statusBadge(device) {
   return `<span class="badge warn">${escapeHtml(conn.status)}</span>`;
 }
 
+function setCardBusy(card, busy) {
+  if (!card) return;
+  card.querySelectorAll("button, input").forEach((el) => {
+    if (busy) {
+      if (el.dataset.wasDisabled === undefined) {
+        el.dataset.wasDisabled = el.disabled ? "1" : "0";
+      }
+      el.disabled = true;
+    } else {
+      el.disabled = el.dataset.wasDisabled === "1";
+      delete el.dataset.wasDisabled;
+    }
+  });
+}
+
 function renderDevices() {
   const list = $("#device-list");
   const empty = $("#device-empty");
@@ -234,60 +249,91 @@ function renderDevices() {
     const conn = findConnected(device);
     const online = conn && conn.status === "device";
     const pair = pairEndpoint(device);
+    const port = Number(device.connectPort) || DEFAULT_CONNECT_PORT;
 
     const card = document.createElement("div");
     card.className = "device-card";
     card.innerHTML = `
       <div class="device-info">
         <h3>${escapeHtml(device.name || "Unnamed")} ${statusBadge(device)}</h3>
-        <p class="muted">${escapeHtml(endpoint(device))}${
-          conn && conn.model ? " · " + escapeHtml(conn.model) : ""
-        }</p>
+        <p class="muted">${escapeHtml(device.ip)}:<input
+          type="number" min="1" max="65535" class="port-input" data-port
+          value="${port}"
+          title="Connect port — đổi mỗi khi bật/tắt Wireless debugging hoặc khởi động lại điện thoại"
+        />${conn && conn.model ? " · " + escapeHtml(conn.model) : ""}</p>
         <p class="muted small">Pairing: ${
           pair ? escapeHtml(pair) : "not configured"
         }</p>
+        ${
+          conn
+            ? ""
+            : '<p class="muted small">Đã lưu — kiểm tra lại port hiện tại trên điện thoại rồi bấm Connect.</p>'
+        }
       </div>
       <div class="device-actions">
         <button class="btn primary" data-act="connect">Connect</button>
+        <button class="btn" data-act="pair">Pair lại</button>
         <button class="btn" data-act="scrcpy" ${online ? "" : "disabled"}>Open scrcpy</button>
         <button class="btn" data-act="disconnect" ${conn ? "" : "disabled"}>Disconnect</button>
         <button class="btn" data-act="edit">Edit</button>
         <button class="btn danger" data-act="delete">Delete</button>
       </div>`;
 
+    const portInput = card.querySelector("[data-port]");
+
     card.querySelectorAll("[data-act]").forEach((btn) => {
-      btn.addEventListener("click", () => handleDeviceAction(btn.dataset.act, device));
+      btn.addEventListener("click", () =>
+        handleDeviceAction(btn.dataset.act, device, card, portInput),
+      );
     });
     list.appendChild(card);
   }
 }
 
-async function handleDeviceAction(action, device) {
-  try {
-    if (action === "edit") return openDeviceDialog(device);
+async function handleDeviceAction(action, device, card, portInput) {
+  if (action === "edit" || action === "pair") return openDeviceDialog(device);
 
-    if (action === "delete") {
-      if (!confirm(`Delete device "${device.name}"?`)) return;
+  if (action === "delete") {
+    if (!confirm(`Delete device "${device.name}"?`)) return;
+    try {
+      setCardBusy(card, true);
       await invoke("delete_device", { id: device.id });
       toast("Device deleted", "ok");
-      return loadDevices();
+      await loadDevices();
+    } catch (err) {
+      toast(String(err), "err");
+      setCardBusy(card, false);
+    }
+    return;
+  }
+
+  setCardBusy(card, true);
+  try {
+    const nextPort = portInput
+      ? Number(portInput.value) || device.connectPort
+      : device.connectPort;
+    if (portInput && nextPort !== device.connectPort) {
+      const saved = await invoke("save_device", {
+        device: { ...device, connectPort: nextPort },
+      });
+      Object.assign(device, saved);
     }
 
     if (action === "connect") {
       await invoke("adb_connect", { hostPort: endpoint(device) });
       toast("Connect command sent", "ok");
-      return refreshLive();
-    }
-
-    if (action === "disconnect") {
+    } else if (action === "disconnect") {
       await invoke("adb_disconnect", { hostPort: endpoint(device) });
       toast("Disconnected", "ok");
-      return refreshLive();
+    } else if (action === "scrcpy") {
+      return launchScrcpy(device);
     }
 
-    if (action === "scrcpy") return launchScrcpy(device);
+    await refreshLive();
   } catch (err) {
     toast(String(err), "err");
+  } finally {
+    setCardBusy(card, false);
   }
 }
 
@@ -377,7 +423,22 @@ $("#device-form").addEventListener("submit", async (event) => {
 
 /* ---------------------- Live view ---------------------- */
 
-async function refreshLive() {
+let liveChain = Promise.resolve();
+let liveBusy = false;
+
+function refreshLive() {
+  if (liveBusy) return liveChain;
+  liveBusy = true;
+  liveChain = liveChain
+    .then(doRefreshLive)
+    .catch(() => {})
+    .finally(() => {
+      liveBusy = false;
+    });
+  return liveChain;
+}
+
+async function doRefreshLive() {
   try {
     state.connected = await invoke("list_connected");
   } catch (err) {

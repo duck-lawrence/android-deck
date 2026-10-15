@@ -60,6 +60,20 @@ rustup default stable-msvc
 4. Click **Save** — the app pairs and connects automatically.
 5. Click **Open scrcpy** to mirror and control the phone screen.
 
+## Notes & troubleshooting
+
+- **The device is still listed but shows Offline.** This is normal: Android
+  assigns a **random connect port** every time Wireless debugging is toggled
+  off/on or the phone is rebooted, and the **pairing code is single-use** (some
+  ROMs such as MIUI/HyperOS require pairing again after a reboot). The app keeps
+  your device saved — just open Wireless debugging on the phone, update the port
+  in the device card (inline field) and click **Connect**, or use **Pair lại**
+  when a new code is needed. The app cannot keep the port fixed; that is defined
+  by the phone.
+- **The window no longer freezes.** adb commands run on a worker thread with a
+  hard timeout (15s for read-only commands, 30s for `connect`/`pair`), so a slow
+  or unreachable device reports an error instead of hanging the UI.
+
 ## Project structure
 
 ```

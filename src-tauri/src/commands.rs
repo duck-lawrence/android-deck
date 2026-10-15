@@ -15,6 +15,18 @@ fn adb_path(app: &AppHandle) -> String {
     }
 }
 
+/// Run a blocking operation on a worker thread so the UI/main thread never
+/// freezes while adb is working.
+async fn blocking<T, F>(f: F) -> Result<T, String>
+where
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+    T: Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(f)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub fn get_settings(app: AppHandle) -> Settings {
     config::load(&app).settings
@@ -60,34 +72,41 @@ pub fn delete_device(app: AppHandle, id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn list_connected(app: AppHandle) -> Result<Vec<ConnectedDevice>, String> {
+pub async fn list_connected(app: AppHandle) -> Result<Vec<ConnectedDevice>, String> {
     let adb = adb_path(&app);
-    let output = adb::run(&adb, &["devices", "-l"])?;
-    Ok(adb::parse_devices(&output))
+    blocking(move || {
+        let output = adb::run(&adb, &["devices", "-l"])?;
+        Ok(adb::parse_devices(&output))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn adb_pair(app: AppHandle, host_port: String, code: String) -> Result<String, String> {
+pub async fn adb_pair(app: AppHandle, host_port: String, code: String) -> Result<String, String> {
     let adb = adb_path(&app);
-    adb::run(&adb, &["pair", &host_port, &code])
+    blocking(move || {
+        adb::run_with_timeout(&adb, &["pair", &host_port, &code], adb::CONNECT_TIMEOUT)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn adb_connect(app: AppHandle, host_port: String) -> Result<String, String> {
+pub async fn adb_connect(app: AppHandle, host_port: String) -> Result<String, String> {
     let adb = adb_path(&app);
-    adb::run(&adb, &["connect", &host_port])
+    blocking(move || adb::run_with_timeout(&adb, &["connect", &host_port], adb::CONNECT_TIMEOUT))
+        .await
 }
 
 #[tauri::command]
-pub fn adb_disconnect(app: AppHandle, host_port: String) -> Result<String, String> {
+pub async fn adb_disconnect(app: AppHandle, host_port: String) -> Result<String, String> {
     let adb = adb_path(&app);
-    adb::run(&adb, &["disconnect", &host_port])
+    blocking(move || adb::run(&adb, &["disconnect", &host_port])).await
 }
 
 #[tauri::command]
-pub fn adb_kill_server(app: AppHandle) -> Result<String, String> {
+pub async fn adb_kill_server(app: AppHandle) -> Result<String, String> {
     let adb = adb_path(&app);
-    adb::run(&adb, &["kill-server"])
+    blocking(move || adb::run(&adb, &["kill-server"])).await
 }
 
 #[tauri::command]
@@ -96,11 +115,7 @@ pub fn launch_scrcpy(app: AppHandle, serial: String, args: Vec<String>) -> Resul
     scrcpy::launch(&scrcpy, &serial, &args)
 }
 
-#[tauri::command]
-pub fn check_tools(app: AppHandle) -> ToolStatus {
-    let settings = config::load(&app).settings;
-    let adb = adb_path(&app);
-
+fn build_tool_status(adb: String, scrcpy_path: String) -> ToolStatus {
     let (adb_ok, adb_message) = match adb::run(&adb, &["version"]) {
         Ok(output) => {
             let version = output
@@ -113,7 +128,6 @@ pub fn check_tools(app: AppHandle) -> ToolStatus {
         Err(err) => (false, err),
     };
 
-    let scrcpy_path = settings.scrcpy_path.clone();
     let scrcpy_ok = Path::new(&scrcpy_path).is_file();
     let scrcpy_message = if scrcpy_ok {
         format!("Found scrcpy: {scrcpy_path}")
@@ -132,8 +146,27 @@ pub fn check_tools(app: AppHandle) -> ToolStatus {
 }
 
 #[tauri::command]
-pub fn detect_tools() -> DetectionResult {
-    detect::detect()
+pub async fn check_tools(app: AppHandle) -> ToolStatus {
+    let adb = adb_path(&app);
+    let scrcpy_path = config::load(&app).settings.scrcpy_path;
+
+    tauri::async_runtime::spawn_blocking(move || build_tool_status(adb, scrcpy_path))
+        .await
+        .unwrap_or_else(|e| ToolStatus {
+            adb_ok: false,
+            adb_path: String::new(),
+            adb_message: format!("Tool check failed: {e}"),
+            scrcpy_ok: false,
+            scrcpy_path: String::new(),
+            scrcpy_message: String::new(),
+        })
+}
+
+#[tauri::command]
+pub async fn detect_tools() -> DetectionResult {
+    tauri::async_runtime::spawn_blocking(detect::detect)
+        .await
+        .unwrap_or_default()
 }
 
 #[tauri::command]
